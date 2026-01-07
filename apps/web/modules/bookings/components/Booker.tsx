@@ -7,7 +7,8 @@ import { shallow } from "zustand/shallow";
 import BookingPageTagManager from "@calcom/app-store/BookingPageTagManager";
 import { useIsPlatformBookerEmbed } from "@calcom/atoms/hooks/useIsPlatformBookerEmbed";
 import dayjs from "@calcom/dayjs";
-import PoweredBy from "@calcom/web/modules/ee/common/components/PoweredBy";
+// De-coupled for white-labeling
+// import PoweredBy from "@calcom/web/modules/ee/common/components/PoweredBy";
 import { useEmbedUiConfig } from "@calcom/embed-core/embed-iframe";
 import { updateEmbedBookerState } from "@calcom/embed-core/src/embed-iframe";
 import TurnstileCaptcha from "@calcom/features/auth/Turnstile";
@@ -577,7 +578,11 @@ const BookerComponent = ({
               hasDarkBackground ? "dark" : "",
               layout === BookerLayouts.MONTH_VIEW ? "block" : "hidden"
             )}>
-            <PoweredBy logoOnly hasValidLicense={hasValidLicense} />
+            <div className="p-2 text-center text-xs sm:text-right">
+              <a href="https://cal.com" target="_blank" className="text-subtle">
+                Powered by TimePiece
+              </a>
+            </div>
           </m.span>
         )}
       </div>

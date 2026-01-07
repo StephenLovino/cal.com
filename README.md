@@ -4,10 +4,10 @@
    <img src="https://user-images.githubusercontent.com/8019099/210054112-5955e812-a76e-4160-9ddd-58f2c72f1cce.png" alt="Logo">
   </a>
 
-  <h3 align="center">Cal.com</h3>
+  <h3 align="center">TimePiece</h3>
 
   <p align="center">
-    The open-source Calendly successor.
+    A white-labeled scheduling platform based on <a href="https://cal.com">Cal.com</a>.
     <br />
     <a href="https://cal.com"><strong>Learn more »</strong></a>
     <br />

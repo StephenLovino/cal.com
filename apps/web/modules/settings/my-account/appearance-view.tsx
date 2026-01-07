@@ -391,10 +391,9 @@ const AppearanceView = ({
           <SettingsToggle
             toggleSwitchAtTheEnd={true}
             title={t("disable_cal_branding", { appName: APP_NAME })}
-            disabled={!hasPaidPlan || mutation?.isPending}
+            disabled={mutation?.isPending}
             description={t("removes_cal_branding", { appName: APP_NAME })}
-            checked={hasPaidPlan ? hideBrandingValue : false}
-            Badge={<UpgradeTeamsBadgeWebWrapper />}
+            checked={hideBrandingValue}
             onCheckedChange={(checked) => {
               setHideBrandingValue(checked);
               mutation.mutate({ hideBranding: checked });
