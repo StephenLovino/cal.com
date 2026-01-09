@@ -42,11 +42,13 @@ COPY packages ./packages
 COPY tests ./tests
 
 RUN yarn config set httpTimeout 1200000
+RUN yarn plugin import npm-cli || true
 RUN npx turbo prune --scope=@calcom/web --scope=@calcom/trpc --docker
 RUN yarn install
 # Build and make embed servable from web/public/embed folder
 RUN yarn workspace @calcom/trpc run build
 RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
+RUN touch apps/web/.env
 RUN yarn --cwd apps/web workspace @calcom/web run build
 RUN rm -rf node_modules/.cache .yarn/cache apps/web/.next/cache
 
@@ -60,6 +62,10 @@ ENV NODE_ENV=production
 COPY package.json .yarnrc.yml turbo.json i18n.json ./
 COPY .yarn ./.yarn
 COPY --from=builder /calcom/yarn.lock ./yarn.lock
+# Try to install npm-cli plugin, but don't fail if it doesn't work (we have a fallback)
+RUN yarn plugin import npm-cli 2>/dev/null || \
+    (mkdir -p .yarn/plugins/@yarnpkg && \
+     curl -fsSL https://raw.githubusercontent.com/yarnpkg/berry/master/packages/plugin-npm-cli/bundles/@yarnpkg/plugin-npm-cli.js -o .yarn/plugins/@yarnpkg/plugin-npm-cli.cjs 2>/dev/null || true) || true
 COPY --from=builder /calcom/node_modules ./node_modules
 COPY --from=builder /calcom/packages ./packages
 COPY --from=builder /calcom/apps/web ./apps/web
@@ -83,7 +89,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd 
 COPY --from=builder-two /calcom ./
 ARG NEXT_PUBLIC_WEBAPP_URL=http://localhost:3000
 ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
-    BUILT_NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL
+    BUILT_NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
+    npm_config_registry=https://registry.npmjs.org/
 
 ENV NODE_ENV=production
 EXPOSE 3000
