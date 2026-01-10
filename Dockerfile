@@ -19,6 +19,7 @@ ARG NEXT_PUBLIC_SINGLE_ORG_SLUG
 ARG ORGANIZATIONS_ENABLED
 
 ENV NEXT_PUBLIC_WEBAPP_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
+    NEXT_PUBLIC_WEBSITE_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
     NEXT_PUBLIC_API_V2_URL=$NEXT_PUBLIC_API_V2_URL \
     NEXT_PUBLIC_LICENSE_CONSENT=$NEXT_PUBLIC_LICENSE_CONSENT \
     NEXT_PUBLIC_WEBSITE_TERMS_URL=$NEXT_PUBLIC_WEBSITE_TERMS_URL \
@@ -51,7 +52,8 @@ RUN yarn workspace @calcom/trpc run build && \
     yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build && \
     touch apps/web/.env
 # Build Next.js app (skip Sentry release step for Docker builds by running next build directly)
-RUN cd apps/web && yarn next build
+# Show verbose output to help debug failures
+RUN cd apps/web && echo "=== Starting Next.js build ===" && yarn next build 2>&1 | head -200 || (echo "=== BUILD FAILED - showing last 200 lines ===" && exit 1)
 # Install SWC binary for linux-x64-gnu directly in node_modules
 # This ensures Next.js finds it and doesn't try to download at runtime
 RUN NEXT_VERSION=$(node -p "require('./node_modules/next/package.json').version") && \
