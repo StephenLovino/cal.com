@@ -95,7 +95,7 @@ ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
 ENV NODE_ENV=production
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=30s --retries=5 \
-    CMD wget --spider http://localhost:3000 || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD wget --spider --quiet http://localhost:3000 || exit 1
 
 CMD ["/calcom/scripts/start.sh"]
