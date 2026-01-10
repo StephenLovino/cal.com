@@ -5,6 +5,23 @@ set -x
 # NOTE: if these values are the same, this will be skipped.
 scripts/replace-placeholder.sh "$BUILT_NEXT_PUBLIC_WEBAPP_URL" "$NEXT_PUBLIC_WEBAPP_URL"
 
+# Ensure SWC binary is installed at runtime (fallback if build-time installation was cached/skipped)
+# This MUST happen before yarn start, as Next.js needs it immediately
+if [ ! -f /calcom/node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node ]; then
+  echo "=== SWC binary missing at runtime, installing now ==="
+  NEXT_VERSION=$(node -p "require('./node_modules/next/package.json').version" 2>/dev/null || echo "16.1.0")
+  mkdir -p /calcom/node_modules/@next/swc-linux-x64-gnu
+  cd /tmp
+  npm pack @next/swc-linux-x64-gnu@$NEXT_VERSION 2>&1
+  tar -xzf next-swc-linux-x64-gnu-*.tgz
+  cp -r package/* /calcom/node_modules/@next/swc-linux-x64-gnu/
+  rm -rf /tmp/package /tmp/*.tgz
+  ls -lh /calcom/node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node
+  echo "=== SWC binary installed at runtime ==="
+else
+  echo "=== SWC binary already present ==="
+fi
+
 # Set up yarn wrapper to handle "yarn config get registry" for Next.js SWC download
 # This fixes the issue where Yarn 4 doesn't support this command without npm-cli plugin
 # IMPORTANT: This must be done BEFORE yarn start, as Next.js calls yarn during SWC download
