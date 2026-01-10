@@ -50,6 +50,11 @@ RUN yarn workspace @calcom/trpc run build
 RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
 RUN touch apps/web/.env
 RUN yarn --cwd apps/web workspace @calcom/web run build
+# Pre-download SWC binary for linux-x64-gnu so it's cached for runtime
+# This avoids the "yarn config get registry" issue in production
+RUN mkdir -p /root/.cache/next-swc && \
+    npm pack @next/swc-linux-x64-gnu --pack-destination /tmp && \
+    tar -xzf /tmp/next-swc-linux-x64-gnu-*.tgz -C /root/.cache/next-swc --strip-components=1 || true
 RUN rm -rf node_modules/.cache .yarn/cache apps/web/.next/cache
 
 FROM node:20 AS builder-two
@@ -87,6 +92,9 @@ WORKDIR /calcom
 RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd wget && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder-two /calcom ./
+# Copy the SWC cache from builder so Next.js doesn't need to download it at runtime
+# This avoids the "yarn config get registry" issue entirely
+COPY --from=builder /root/.cache /root/.cache
 ARG NEXT_PUBLIC_WEBAPP_URL=http://localhost:3000
 ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
     BUILT_NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
