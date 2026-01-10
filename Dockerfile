@@ -92,6 +92,29 @@ ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
     BUILT_NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
     npm_config_registry=https://registry.npmjs.org/
 
+# Set up yarn wrapper early to handle "yarn config get registry" for Next.js SWC download
+# This must be done before Next.js starts, as it calls yarn during SWC download
+RUN if [ -f /usr/local/bin/yarn ] && [ ! -f /usr/local/bin/yarn.real ]; then \
+      mv /usr/local/bin/yarn /usr/local/bin/yarn.real && \
+      echo '#!/bin/sh' > /usr/local/bin/yarn && \
+      echo 'if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then' >> /usr/local/bin/yarn && \
+      echo '  echo "${npm_config_registry:-https://registry.npmjs.org/}"' >> /usr/local/bin/yarn && \
+      echo '  exit 0' >> /usr/local/bin/yarn && \
+      echo 'fi' >> /usr/local/bin/yarn && \
+      echo 'exec /usr/local/bin/yarn.real "$@"' >> /usr/local/bin/yarn && \
+      chmod +x /usr/local/bin/yarn; \
+    fi && \
+    if [ -f /calcom/node_modules/.bin/yarn ] && [ ! -f /calcom/node_modules/.bin/yarn.real ]; then \
+      mv /calcom/node_modules/.bin/yarn /calcom/node_modules/.bin/yarn.real && \
+      echo '#!/bin/sh' > /calcom/node_modules/.bin/yarn && \
+      echo 'if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then' >> /calcom/node_modules/.bin/yarn && \
+      echo '  echo "${npm_config_registry:-https://registry.npmjs.org/}"' >> /calcom/node_modules/.bin/yarn && \
+      echo '  exit 0' >> /calcom/node_modules/.bin/yarn && \
+      echo 'fi' >> /calcom/node_modules/.bin/yarn && \
+      echo 'exec /calcom/node_modules/.bin/yarn.real "$@"' >> /calcom/node_modules/.bin/yarn && \
+      chmod +x /calcom/node_modules/.bin/yarn; \
+    fi
+
 ENV NODE_ENV=production
 EXPOSE 3000
 
