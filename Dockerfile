@@ -27,6 +27,7 @@ ENV NEXT_PUBLIC_WEBAPP_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
     DATABASE_URL=$DATABASE_URL \
     DATABASE_DIRECT_URL=$DATABASE_URL \
     NEXTAUTH_SECRET=${NEXTAUTH_SECRET} \
+    NEXTAUTH_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER/api/auth \
     CALENDSO_ENCRYPTION_KEY=${CALENDSO_ENCRYPTION_KEY} \
     NEXT_PUBLIC_SINGLE_ORG_SLUG=$NEXT_PUBLIC_SINGLE_ORG_SLUG \
     ORGANIZATIONS_ENABLED=$ORGANIZATIONS_ENABLED \
@@ -49,8 +50,8 @@ RUN yarn install
 RUN yarn workspace @calcom/trpc run build
 RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
 RUN touch apps/web/.env
-# Build Next.js app (skip Sentry release step for Docker builds)
-RUN cd apps/web && yarn next build || (echo "Build failed, checking logs..." && exit 1)
+# Build Next.js app (skip Sentry release step for Docker builds by running next build directly)
+RUN cd apps/web && yarn next build
 # Install SWC binary for linux-x64-gnu directly in node_modules
 # This ensures Next.js finds it and doesn't try to download at runtime
 # Force installation even on different arch using npm pack + extract
