@@ -92,8 +92,13 @@ ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
     BUILT_NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
     npm_config_registry=https://registry.npmjs.org/
 
-# Set up yarn wrapper early to handle "yarn config get registry" for Next.js SWC download
-# This must be done before Next.js starts, as it calls yarn during SWC download
+# Ensure npm-cli plugin is installed and working (this makes yarn config get registry work natively)
+RUN if [ ! -f .yarn/plugins/@yarnpkg/plugin-npm-cli.cjs ]; then \
+      mkdir -p .yarn/plugins/@yarnpkg && \
+      curl -fsSL https://raw.githubusercontent.com/yarnpkg/berry/master/packages/plugin-npm-cli/bundles/@yarnpkg/plugin-npm-cli.js -o .yarn/plugins/@yarnpkg/plugin-npm-cli.cjs || true; \
+    fi
+
+# Also set up yarn wrapper as fallback (in case plugin doesn't work or Next.js bypasses it)
 # Wrap /usr/local/bin/yarn (the system yarn) - always ensure wrapper exists
 RUN if [ -f /usr/local/bin/yarn ] && [ ! -f /usr/local/bin/yarn.real ]; then \
       mv /usr/local/bin/yarn /usr/local/bin/yarn.real; \
@@ -112,7 +117,7 @@ RUN chmod +x /usr/local/bin/yarn
 # Wrap /calcom/node_modules/.bin/yarn (where Next.js might call it from)
 # Handle both regular files and symlinks
 RUN if [ -L /calcom/node_modules/.bin/yarn ]; then \
-      REAL_YARN=$(readlink -f /calcom/node_modules/.bin/yarn) && \
+      REAL_YARN=$(readlink -f /calcom/node_modules/.bin/yarn 2>/dev/null || readlink /calcom/node_modules/.bin/yarn) && \
       rm /calcom/node_modules/.bin/yarn && \
       (cp "$REAL_YARN" /calcom/node_modules/.bin/yarn.real 2>/dev/null || \
        cp /usr/local/bin/yarn.real /calcom/node_modules/.bin/yarn.real); \
