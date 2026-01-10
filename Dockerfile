@@ -101,6 +101,7 @@ RUN if [ -f /usr/local/bin/yarn ] && [ ! -f /usr/local/bin/yarn.real ]; then \
 RUN cat > /usr/local/bin/yarn << 'EOF'
 #!/bin/sh
 if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then
+  echo "[yarn-wrapper] Intercepted: yarn config get registry" >&2
   echo "${npm_config_registry:-https://registry.npmjs.org/}"
   exit 0
 fi
@@ -119,7 +120,7 @@ RUN if [ -L /calcom/node_modules/.bin/yarn ]; then \
       mv /calcom/node_modules/.bin/yarn /calcom/node_modules/.bin/yarn.real; \
     fi
 RUN if [ -f /calcom/node_modules/.bin/yarn.real ]; then \
-      printf '#!/bin/sh\nif [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then\n  echo "${npm_config_registry:-https://registry.npmjs.org/}"\n  exit 0\nfi\nexec /calcom/node_modules/.bin/yarn.real "$@"\n' > /calcom/node_modules/.bin/yarn && \
+      printf '#!/bin/sh\nif [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then\n  echo "[yarn-wrapper] Intercepted: yarn config get registry" >&2\n  echo "${npm_config_registry:-https://registry.npmjs.org/}"\n  exit 0\nfi\nexec /calcom/node_modules/.bin/yarn.real "$@"\n' > /calcom/node_modules/.bin/yarn && \
       chmod +x /calcom/node_modules/.bin/yarn; \
     fi
 
