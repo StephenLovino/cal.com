@@ -14,13 +14,13 @@ if [ -f "$REAL_YARN" ] && [ ! -f "${REAL_YARN}.real" ]; then
 fi
 
 # Create wrapper script that intercepts "yarn config get registry"
-cat > "$REAL_YARN" << 'EOF'
+cat > "$REAL_YARN" << EOF
 #!/bin/sh
-if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then
-  echo "${npm_config_registry:-https://registry.npmjs.org/}"
+if [ "\$1" = "config" ] && [ "\$2" = "get" ] && [ "\$3" = "registry" ]; then
+  echo "\${npm_config_registry:-https://registry.npmjs.org/}"
   exit 0
 fi
-exec /usr/local/bin/yarn.real "$@"
+exec "${REAL_YARN}.real" "\$@"
 EOF
 chmod +x "$REAL_YARN"
 
