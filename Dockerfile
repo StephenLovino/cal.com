@@ -94,24 +94,39 @@ ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
 
 # Set up yarn wrapper early to handle "yarn config get registry" for Next.js SWC download
 # This must be done before Next.js starts, as it calls yarn during SWC download
+# Wrap /usr/local/bin/yarn (the system yarn) - always ensure wrapper exists
 RUN if [ -f /usr/local/bin/yarn ] && [ ! -f /usr/local/bin/yarn.real ]; then \
-      mv /usr/local/bin/yarn /usr/local/bin/yarn.real && \
-      echo '#!/bin/sh' > /usr/local/bin/yarn && \
-      echo 'if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then' >> /usr/local/bin/yarn && \
-      echo '  echo "${npm_config_registry:-https://registry.npmjs.org/}"' >> /usr/local/bin/yarn && \
-      echo '  exit 0' >> /usr/local/bin/yarn && \
-      echo 'fi' >> /usr/local/bin/yarn && \
-      echo 'exec /usr/local/bin/yarn.real "$@"' >> /usr/local/bin/yarn && \
-      chmod +x /usr/local/bin/yarn; \
-    fi && \
-    if [ -f /calcom/node_modules/.bin/yarn ] && [ ! -f /calcom/node_modules/.bin/yarn.real ]; then \
-      mv /calcom/node_modules/.bin/yarn /calcom/node_modules/.bin/yarn.real && \
-      echo '#!/bin/sh' > /calcom/node_modules/.bin/yarn && \
-      echo 'if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then' >> /calcom/node_modules/.bin/yarn && \
-      echo '  echo "${npm_config_registry:-https://registry.npmjs.org/}"' >> /calcom/node_modules/.bin/yarn && \
-      echo '  exit 0' >> /calcom/node_modules/.bin/yarn && \
-      echo 'fi' >> /calcom/node_modules/.bin/yarn && \
-      echo 'exec /calcom/node_modules/.bin/yarn.real "$@"' >> /calcom/node_modules/.bin/yarn && \
+      mv /usr/local/bin/yarn /usr/local/bin/yarn.real; \
+    fi
+RUN cat > /usr/local/bin/yarn << 'EOF'
+#!/bin/sh
+if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then
+  echo "${npm_config_registry:-https://registry.npmjs.org/}"
+  exit 0
+fi
+exec /usr/local/bin/yarn.real "$@"
+EOF
+RUN chmod +x /usr/local/bin/yarn
+
+# Wrap /calcom/node_modules/.bin/yarn (where Next.js might call it from)
+# Handle both regular files and symlinks
+RUN if [ -L /calcom/node_modules/.bin/yarn ]; then \
+      REAL_YARN=$(readlink -f /calcom/node_modules/.bin/yarn) && \
+      rm /calcom/node_modules/.bin/yarn && \
+      (cp "$REAL_YARN" /calcom/node_modules/.bin/yarn.real 2>/dev/null || \
+       cp /usr/local/bin/yarn.real /calcom/node_modules/.bin/yarn.real); \
+    elif [ -f /calcom/node_modules/.bin/yarn ] && [ ! -f /calcom/node_modules/.bin/yarn.real ]; then \
+      mv /calcom/node_modules/.bin/yarn /calcom/node_modules/.bin/yarn.real; \
+    fi
+RUN if [ -f /calcom/node_modules/.bin/yarn.real ]; then \
+      cat > /calcom/node_modules/.bin/yarn << 'EOF'
+#!/bin/sh
+if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then
+  echo "${npm_config_registry:-https://registry.npmjs.org/}"
+  exit 0
+fi
+exec /calcom/node_modules/.bin/yarn.real "$@"
+EOF
       chmod +x /calcom/node_modules/.bin/yarn; \
     fi
 
