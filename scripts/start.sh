@@ -7,19 +7,33 @@ scripts/replace-placeholder.sh "$BUILT_NEXT_PUBLIC_WEBAPP_URL" "$NEXT_PUBLIC_WEB
 
 # Ensure SWC binary is installed at runtime (fallback if build-time installation was cached/skipped)
 # This MUST happen before yarn start, as Next.js needs it immediately
-if [ ! -f /calcom/node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node ]; then
-  echo "=== SWC binary missing at runtime, installing now ==="
+echo "=== Checking for SWC binary ==="
+SWC_PATH="/calcom/node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node"
+if [ -f "$SWC_PATH" ]; then
+  echo "=== SWC binary found at: $SWC_PATH ==="
+  ls -lh "$SWC_PATH"
+else
+  echo "=== SWC binary MISSING at: $SWC_PATH ==="
+  echo "=== Installing SWC binary now ==="
   NEXT_VERSION=$(node -p "require('./node_modules/next/package.json').version" 2>/dev/null || echo "16.1.0")
+  echo "Next.js version: $NEXT_VERSION"
   mkdir -p /calcom/node_modules/@next/swc-linux-x64-gnu
   cd /tmp
+  echo "Packing SWC package..."
   npm pack @next/swc-linux-x64-gnu@$NEXT_VERSION 2>&1
+  echo "Extracting SWC package..."
   tar -xzf next-swc-linux-x64-gnu-*.tgz
+  echo "Copying SWC binary..."
   cp -r package/* /calcom/node_modules/@next/swc-linux-x64-gnu/
   rm -rf /tmp/package /tmp/*.tgz
-  ls -lh /calcom/node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node
-  echo "=== SWC binary installed at runtime ==="
-else
-  echo "=== SWC binary already present ==="
+  echo "Verifying installation..."
+  if [ -f "$SWC_PATH" ]; then
+    ls -lh "$SWC_PATH"
+    echo "=== SWC binary installed successfully at runtime ==="
+  else
+    echo "=== ERROR: SWC binary installation FAILED ==="
+    exit 1
+  fi
 fi
 
 # Set up yarn wrapper to handle "yarn config get registry" for Next.js SWC download
