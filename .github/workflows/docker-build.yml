@@ -58,10 +58,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            NEXT_PUBLIC_LICENSE_CONSENT=agree
+            NEXT_PUBLIC_LICENSE_CONSENT=true
             CALCOM_TELEMETRY_DISABLED=1
             DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
             NEXTAUTH_SECRET=dummy-secret-for-build-only
             CALENDSO_ENCRYPTION_KEY=dummy-encryption-key-for-build-only
             MAX_OLD_SPACE_SIZE=6144
-            NEXT_PUBLIC_WEBAPP_URL=http://localhost:3000

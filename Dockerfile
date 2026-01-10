@@ -51,7 +51,8 @@ RUN yarn workspace @calcom/trpc run build
 RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
 RUN touch apps/web/.env
 # Build Next.js app (skip Sentry release step for Docker builds by running next build directly)
-RUN cd apps/web && yarn next build
+# Capture full output to help debug failures
+RUN cd apps/web && (yarn next build 2>&1 | tee /tmp/build-output.log) || (echo "=== BUILD FAILED ===" && cat /tmp/build-output.log && exit 1)
 # Install SWC binary for linux-x64-gnu directly in node_modules
 # This ensures Next.js finds it and doesn't try to download at runtime
 # Force installation even on different arch using npm pack + extract
