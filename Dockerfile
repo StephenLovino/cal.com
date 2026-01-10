@@ -47,23 +47,47 @@ RUN yarn plugin import npm-cli || true
 RUN npx turbo prune --scope=@calcom/web --scope=@calcom/trpc --docker
 RUN yarn install
 # Build and make embed servable from web/public/embed folder
-RUN yarn workspace @calcom/trpc run build
-RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
-RUN touch apps/web/.env
+RUN yarn workspace @calcom/trpc run build && \
+    yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build && \
+    touch apps/web/.env
 # Build Next.js app (skip Sentry release step for Docker builds by running next build directly)
-# Capture full output to help debug failures
-RUN cd apps/web && (yarn next build 2>&1 | tee /tmp/build-output.log) || (echo "=== BUILD FAILED ===" && cat /tmp/build-output.log && exit 1)
+RUN cd apps/web && yarn next build
 # Install SWC binary for linux-x64-gnu directly in node_modules
 # This ensures Next.js finds it and doesn't try to download at runtime
-# Force installation even on different arch using npm pack + extract
 RUN NEXT_VERSION=$(node -p "require('./node_modules/next/package.json').version") && \
     mkdir -p node_modules/@next/swc-linux-x64-gnu && \
     cd /tmp && \
     npm pack @next/swc-linux-x64-gnu@$NEXT_VERSION && \
     tar -xzf next-swc-linux-x64-gnu-*.tgz && \
     cp -r package/* /calcom/node_modules/@next/swc-linux-x64-gnu/ && \
-    rm -rf /tmp/package /tmp/*.tgz || true
-RUN rm -rf node_modules/.cache .yarn/cache apps/web/.next/cache
+    rm -rf /tmp/package /tmp/*.tgz
+# Aggressive cleanup to reduce disk space
+RUN rm -rf node_modules/.cache \
+    .yarn/cache \
+    apps/web/.next/cache \
+    apps/web/.next/static/chunks/*.map \
+    node_modules/**/*.md \
+    node_modules/**/*.txt \
+    node_modules/**/.github \
+    node_modules/**/test \
+    node_modules/**/tests \
+    node_modules/**/__tests__ \
+    node_modules/**/*.test.js \
+    node_modules/**/*.spec.js \
+    node_modules/**/examples \
+    node_modules/**/example \
+    node_modules/**/docs \
+    node_modules/**/doc \
+    node_modules/**/CHANGELOG* \
+    node_modules/**/LICENSE* \
+    node_modules/**/README* \
+    node_modules/**/HISTORY* \
+    node_modules/**/NOTICE* \
+    node_modules/**/AUTHORS* \
+    node_modules/**/CONTRIBUTORS* \
+    .turbo \
+    /tmp/* \
+    /var/tmp/* || true
 
 FROM node:20 AS builder-two
 
