@@ -7,53 +7,50 @@ scripts/replace-placeholder.sh "$BUILT_NEXT_PUBLIC_WEBAPP_URL" "$NEXT_PUBLIC_WEB
 
 # Set up yarn wrapper to handle "yarn config get registry" for Next.js SWC download
 # This fixes the issue where Yarn 4 doesn't support this command without npm-cli plugin
-# Find all possible yarn locations and wrap them
-for YARN_PATH in /usr/local/bin/yarn /usr/bin/yarn $(command -v yarn 2>/dev/null); do
-  if [ -f "$YARN_PATH" ] && [ ! -f "${YARN_PATH}.real" ]; then
-    mv "$YARN_PATH" "${YARN_PATH}.real"
-    # Create wrapper script that intercepts "yarn config get registry"
-    cat > "$YARN_PATH" << WRAPPER_EOF
+# IMPORTANT: This must be done BEFORE yarn start, as Next.js calls yarn during SWC download
+# The Dockerfile already sets up wrappers, but we ensure they're active here too
+
+# Wrap /usr/local/bin/yarn if not already wrapped (preserve Dockerfile wrapper if it exists)
+if [ -f /usr/local/bin/yarn ] && [ ! -f /usr/local/bin/yarn.real ]; then
+  mv /usr/local/bin/yarn /usr/local/bin/yarn.real
+fi
+# Always ensure wrapper exists (even if .real already exists from Dockerfile)
+cat > /usr/local/bin/yarn << 'WRAPPER_EOF'
 #!/bin/sh
-if [ "\$1" = "config" ] && [ "\$2" = "get" ] && [ "\$3" = "registry" ]; then
-  echo "\${npm_config_registry:-https://registry.npmjs.org/}"
+if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then
+  echo "[yarn-wrapper] Intercepted: yarn config get registry" >&2
+  echo "${npm_config_registry:-https://registry.npmjs.org/}"
   exit 0
 fi
-exec "${YARN_PATH}.real" "\$@"
+exec /usr/local/bin/yarn.real "$@"
 WRAPPER_EOF
-    chmod +x "$YARN_PATH"
-  fi
-done
+chmod +x /usr/local/bin/yarn
 
-# Also wrap yarn in node_modules/.bin if it exists
-if [ -f "/calcom/node_modules/.bin/yarn" ] && [ ! -f "/calcom/node_modules/.bin/yarn.real" ]; then
+# Wrap /calcom/node_modules/.bin/yarn (where Next.js might call it from)
+if [ -L /calcom/node_modules/.bin/yarn ]; then
+  # Handle symlink - resolve and backup
+  REAL_YARN=$(readlink -f /calcom/node_modules/.bin/yarn 2>/dev/null || readlink /calcom/node_modules/.bin/yarn)
+  rm /calcom/node_modules/.bin/yarn
+  if [ -f "$REAL_YARN" ]; then
+    cp "$REAL_YARN" /calcom/node_modules/.bin/yarn.real 2>/dev/null || cp /usr/local/bin/yarn.real /calcom/node_modules/.bin/yarn.real
+  else
+    cp /usr/local/bin/yarn.real /calcom/node_modules/.bin/yarn.real
+  fi
+elif [ -f /calcom/node_modules/.bin/yarn ] && [ ! -f /calcom/node_modules/.bin/yarn.real ]; then
   mv /calcom/node_modules/.bin/yarn /calcom/node_modules/.bin/yarn.real
+fi
+# Always ensure wrapper exists
+if [ -f /calcom/node_modules/.bin/yarn.real ]; then
   cat > /calcom/node_modules/.bin/yarn << 'WRAPPER_EOF'
 #!/bin/sh
 if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then
+  echo "[yarn-wrapper] Intercepted: yarn config get registry" >&2
   echo "${npm_config_registry:-https://registry.npmjs.org/}"
   exit 0
 fi
 exec /calcom/node_modules/.bin/yarn.real "$@"
 WRAPPER_EOF
   chmod +x /calcom/node_modules/.bin/yarn
-fi
-
-# Create a global yarn wrapper in /usr/local/bin that's always in PATH
-# This ensures Next.js can find it regardless of where it calls yarn from
-if [ ! -f /usr/local/bin/yarn-wrapper ]; then
-  cat > /usr/local/bin/yarn-wrapper << 'GLOBAL_WRAPPER_EOF'
-#!/bin/sh
-if [ "$1" = "config" ] && [ "$2" = "get" ] && [ "$3" = "registry" ]; then
-  echo "${npm_config_registry:-https://registry.npmjs.org/}"
-  exit 0
-fi
-# Try to find the real yarn
-REAL_YARN=$(command -v yarn.real 2>/dev/null || command -v yarn 2>/dev/null || echo "/usr/local/bin/yarn.real")
-exec "$REAL_YARN" "$@"
-GLOBAL_WRAPPER_EOF
-  chmod +x /usr/local/bin/yarn-wrapper
-  # Add to PATH so it's found first
-  export PATH="/usr/local/bin:$PATH"
 fi
 
 scripts/wait-for-it.sh ${DATABASE_HOST} -- echo "database is up"
